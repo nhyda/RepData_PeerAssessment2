@@ -12,6 +12,13 @@ output:
     highlight: pygments
 ---
 
+#Analysis Plan
+1. Retreive cBioportal mutation, expression and CNV data for pancreatic cancer
+2. stratify patient into two groups, TGFb pathway disrupted, TGFb pathway naive
+3. DEG analysis using limma to identify genes that differently expressed in two groups
+  3.1 KRAS mutation will be added as a factor
+
+
 ```{r global_options, include=FALSE}
   # use include=FALSE to have the chunk evaluated, but neither the code nor its output displayed.
   knitr::opts_chunk$set(echo=TRUE, message=FALSE, fig.align="center",
@@ -28,7 +35,7 @@ output:
   # Pretty printing in knitr
   #library(printr)
   # Manually set the seed to an arbitrary number for consistency in reports
-  set.seed(1203)
+  set.seed(1234)
   # Do not convert character vectors to factors unless explicitly indicated
   #options(stringsAsFactors=FALSE)
   startTime <- Sys.time()
@@ -53,26 +60,16 @@ library(rhdf5)
 ```
 
 #read data in
-tried cache and .Rdata to speedy up
 ```{r cache=TRUE}
 #system.time(df<-read.csv("data/repdata-data-StormData.csv",stringsAsFactors = F))
+#h5createFile("myhdf5file.h5")
+#system.time(h5write(df,"myhdf5file.h5","raw"))
+#system.time(df<-h5read("myhdf5file.h5","raw"))
 #system.time(saveRDS(df,file="raw.Rdata"))
 system.time(df<-readRDS(file="raw.Rdata"))
 ```
 
 #vocabulary control of event type
-##unique entries in the database
-```{r}
-unique_entries<-unique(df$EVTYPE)
-```
-unique entries in the database is `length(unique_entries)` 
-these entries are combination of severnal predifined event type 
-it makes sense that heavy rain will usually cause flood 
-
-But 
-so a controlled vocabulary of event type is used to run analysis
-of course, death and 
-
 ##controled vocabulary borrowed from National Weather Service Storm Data Documentation
 https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf 
 page 6 table 2.1.1 Storm Data Event TAble 
@@ -82,11 +79,14 @@ add "Landslide" as an alternative for "Debris Flow"
 data_dict=read.table("Storm_Data_Event_Table.txt",header=T,sep=";")
 ```
 
-total number of available event type is `r dim(data_dict)[1]`
+###total number of available event type is `r dim(data_dict)[1]`
 
+##unique entries in the database
+```{r}
+unique_entries<-unique(df$EVTYPE)
+```
 
-
-###
+###unique entries in the database is `length(unique_entries)`
 
 
 #generate new data table based on controlled vocabulary

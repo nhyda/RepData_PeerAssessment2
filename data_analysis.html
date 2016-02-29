@@ -58,59 +58,48 @@ code > span.er { color: #ff0000; font-weight: bold; }
 
 <div id="TOC">
 <ul>
-<li><a href="#analysis-plan"><span class="toc-section-number">1</span> Analysis Plan</a></li>
-<li><a href="#read-data-in"><span class="toc-section-number">2</span> read data in</a></li>
-<li><a href="#vocabulary-control-of-event-type"><span class="toc-section-number">3</span> vocabulary control of event type</a><ul>
-<li><a href="#controled-vacabulary-borrowed-from-national-weather-service-storm-data-documentation"><span class="toc-section-number">3.1</span> controled vacabulary borrowed from National Weather Service Storm Data Documentation</a></li>
-<li><a href="#unique-entries-in-the-database"><span class="toc-section-number">3.2</span> unique entries in the database</a></li>
+<li><a href="#read-data-in"><span class="toc-section-number">1</span> read data in</a></li>
+<li><a href="#vocabulary-control-of-event-type"><span class="toc-section-number">2</span> vocabulary control of event type</a><ul>
+<li><a href="#unique-entries-in-the-database"><span class="toc-section-number">2.1</span> unique entries in the database</a></li>
+<li><a href="#controled-vocabulary-borrowed-from-national-weather-service-storm-data-documentation"><span class="toc-section-number">2.2</span> controled vocabulary borrowed from National Weather Service Storm Data Documentation</a></li>
 </ul></li>
-<li><a href="#generate-new-data-table-based-on-controlled-vocabulary"><span class="toc-section-number">4</span> generate new data table based on controlled vocabulary</a><ul>
-<li><a href="#function-that-calculate-property-damage"><span class="toc-section-number">4.1</span> function that calculate property damage</a></li>
+<li><a href="#generate-new-data-table-based-on-controlled-vocabulary"><span class="toc-section-number">3</span> generate new data table based on controlled vocabulary</a><ul>
+<li><a href="#function-that-calculate-property-damage"><span class="toc-section-number">3.1</span> function that calculate property damage</a></li>
 </ul></li>
 </ul>
 </div>
 
-<div id="analysis-plan" class="section level1">
-<h1><span class="header-section-number">1</span> Analysis Plan</h1>
-<ol style="list-style-type: decimal">
-<li>Retreive cBioportal mutation, expression and CNV data for pancreatic cancer</li>
-<li>stratify patient into two groups, TGFb pathway disrupted, TGFb pathway naive</li>
-<li>DEG analysis using limma to identify genes that differently expressed in two groups 3.1 KRAS mutation will be added as a factor</li>
-</ol>
-</div>
 <div id="read-data-in" class="section level1">
-<h1><span class="header-section-number">2</span> read data in</h1>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">system.time</span>(df&lt;-<span class="kw">read.csv</span>(<span class="st">&quot;data/repdata-data-StormData.csv&quot;</span>,<span class="dt">stringsAsFactors =</span> F))</code></pre>
-<pre><code>##    user  system elapsed 
-##  56.842   0.781  57.792</code></pre>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="co">#h5createFile(&quot;myhdf5file.h5&quot;)</span>
-<span class="co">#system.time(h5write(df,&quot;myhdf5file.h5&quot;,&quot;raw&quot;))</span>
-<span class="co">#system.time(df&lt;-h5read(&quot;myhdf5file.h5&quot;,&quot;raw&quot;))</span>
+<h1><span class="header-section-number">1</span> read data in</h1>
+<p>tried cache and .Rdata to speedy up</p>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="co">#system.time(df&lt;-read.csv(&quot;data/repdata-data-StormData.csv&quot;,stringsAsFactors = F))</span>
 <span class="co">#system.time(saveRDS(df,file=&quot;raw.Rdata&quot;))</span>
-<span class="co">#system.time(df&lt;-readRDS(file=&quot;raw.Rdata&quot;))</span></code></pre>
+<span class="kw">system.time</span>(df&lt;-<span class="kw">readRDS</span>(<span class="dt">file=</span><span class="st">&quot;raw.Rdata&quot;</span>))</code></pre>
+<pre><code>##    user  system elapsed 
+##   10.50    0.26   11.53</code></pre>
 </div>
 <div id="vocabulary-control-of-event-type" class="section level1">
-<h1><span class="header-section-number">3</span> vocabulary control of event type</h1>
-<div id="controled-vacabulary-borrowed-from-national-weather-service-storm-data-documentation" class="section level2">
-<h2><span class="header-section-number">3.1</span> controled vacabulary borrowed from National Weather Service Storm Data Documentation</h2>
-<p>given the deadline, manually generated the list to seperate “/” as different event</p>
-<pre class="sourceCode r"><code class="sourceCode r">data_dict=<span class="kw">read.table</span>(<span class="st">&quot;data/Storm_Data_Event_Table.txt&quot;</span>,<span class="dt">header=</span>T,<span class="dt">sep=</span><span class="st">&quot;;&quot;</span>)</code></pre>
-<div id="total-number-of-available-event-type-is-54" class="section level3">
-<h3><span class="header-section-number">3.1.1</span> total number of available event type is 54</h3>
-</div>
-</div>
+<h1><span class="header-section-number">2</span> vocabulary control of event type</h1>
 <div id="unique-entries-in-the-database" class="section level2">
-<h2><span class="header-section-number">3.2</span> unique entries in the database</h2>
+<h2><span class="header-section-number">2.1</span> unique entries in the database</h2>
 <pre class="sourceCode r"><code class="sourceCode r">unique_entries&lt;-<span class="kw">unique</span>(df$EVTYPE)</code></pre>
-<div id="unique-entries-in-the-database-is-lengthunique_entries" class="section level3">
-<h3><span class="header-section-number">3.2.1</span> unique entries in the database is <code>length(unique_entries)</code></h3>
+<p>unique entries in the database is <code>length(unique_entries)</code> these entries are combination of severnal predifined event type it makes sense that heavy rain will usually cause flood</p>
+<p>But so a controlled vocabulary of event type is used to run analysis of course, death and</p>
+</div>
+<div id="controled-vocabulary-borrowed-from-national-weather-service-storm-data-documentation" class="section level2">
+<h2><span class="header-section-number">2.2</span> controled vocabulary borrowed from National Weather Service Storm Data Documentation</h2>
+<p><a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf">https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf</a> page 6 table 2.1.1 Storm Data Event TAble given the deadline, manually generated the list to seperate “/” as different event add “Landslide” as an alternative for “Debris Flow”</p>
+<pre class="sourceCode r"><code class="sourceCode r">data_dict=<span class="kw">read.table</span>(<span class="st">&quot;Storm_Data_Event_Table.txt&quot;</span>,<span class="dt">header=</span>T,<span class="dt">sep=</span><span class="st">&quot;;&quot;</span>)</code></pre>
+<p>total number of available event type is 54</p>
+<div id="section" class="section level3">
+<h3><span class="header-section-number">2.2.1</span> </h3>
 </div>
 </div>
 </div>
 <div id="generate-new-data-table-based-on-controlled-vocabulary" class="section level1">
-<h1><span class="header-section-number">4</span> generate new data table based on controlled vocabulary</h1>
+<h1><span class="header-section-number">3</span> generate new data table based on controlled vocabulary</h1>
 <div id="function-that-calculate-property-damage" class="section level2">
-<h2><span class="header-section-number">4.1</span> function that calculate property damage</h2>
+<h2><span class="header-section-number">3.1</span> function that calculate property damage</h2>
 <pre class="sourceCode r"><code class="sourceCode r">Prop_Damage&lt;-function(base,power_of_ten) {
   <span class="co">#print(paste(&quot;number is&quot;,base))</span>
   <span class="co">#print(paste(&quot;power is&quot;,power_of_ten))</span>
