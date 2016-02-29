@@ -1,0 +1,128 @@
+---
+title: "Storm Data Analysis"
+author: "Xiaotao Qu"
+date: "February 12, 2016"
+output: 
+  #html_document:
+  knitr:::html_vignette:
+    toc: true 
+    toc_depth: 2
+    number_sections: true
+    #theme: journal
+    highlight: pygments
+---
+
+#Analysis Plan
+1. Retreive cBioportal mutation, expression and CNV data for pancreatic cancer
+2. stratify patient into two groups, TGFb pathway disrupted, TGFb pathway naive
+3. DEG analysis using limma to identify genes that differently expressed in two groups
+  3.1 KRAS mutation will be added as a factor
+
+
+```{r global_options, include=FALSE}
+  # use include=FALSE to have the chunk evaluated, but neither the code nor its output displayed.
+  knitr::opts_chunk$set(echo=TRUE, message=FALSE, fig.align="center",
+                        fig.width=12, fig.height=8, fig.path='figure/',
+                        dev='png')
+  options(StringsAsFactors=F)
+```
+
+```{r echo=F}
+  # Clear the current session, to avoid errors from persisting data structures
+  rm(list=ls())
+  # Free up memory by forcing garbage collection
+  invisible(gc())
+  # Pretty printing in knitr
+  #library(printr)
+  # Manually set the seed to an arbitrary number for consistency in reports
+  set.seed(1234)
+  # Do not convert character vectors to factors unless explicitly indicated
+  #options(stringsAsFactors=FALSE)
+  startTime <- Sys.time()
+```
+
+
+```{r echo=F}
+library(limma)
+#library(magrittr)
+library(ggplot2)
+library(dplyr)
+#library(qvalue)
+#library(reshape)
+#library(lazyeval)
+library(GGally)
+#library(grid)
+#library(gridExtra)
+library(tidyr)
+#library(xtable)
+library(printr)
+library(rhdf5)
+```
+
+#read data in
+```{r cache=TRUE}
+system.time(df<-read.csv("data/repdata-data-StormData.csv",stringsAsFactors = F))
+#h5createFile("myhdf5file.h5")
+#system.time(h5write(df,"myhdf5file.h5","raw"))
+#system.time(df<-h5read("myhdf5file.h5","raw"))
+#system.time(saveRDS(df,file="raw.Rdata"))
+#system.time(df<-readRDS(file="raw.Rdata"))
+```
+
+#vocabulary control of event type
+##controled vacabulary borrowed from National Weather Service Storm Data Documentation
+given the deadline, manually generated the list to seperate "/" as different event
+```{r}
+data_dict=read.table("data/Storm_Data_Event_Table.txt",header=T,sep=";")
+```
+
+###total number of available event type is `r dim(data_dict)[1]`
+
+##unique entries in the database
+```{r}
+unique_entries<-unique(df$EVTYPE)
+```
+
+###unique entries in the database is `length(unique_entries)`
+
+
+#generate new data table based on controlled vocabulary
+##function that calculate property damage
+```{r}
+Prop_Damage<-function(base,power_of_ten) {
+  #print(paste("number is",base))
+  #print(paste("power is",power_of_ten))
+  #print(typeof(base))
+  if (base == 0) 
+    return(0)
+  if (power_of_ten=="B") 
+    return(base*10^9)
+  if (power_of_ten=="K") 
+    return(base*10^3)
+  if (power_of_ten %in% c("M","m"))
+    return(base*10^6)
+  return(0)
+}
+```
+
+```{r}
+df.cleaned=df %>% 
+    select(EVTYPE,FATALITIES,INJURIES,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP) %>%
+    mutate(damage=Prop_Damage(PROPDMG,PROPDMGEXP)+Prop_Damage(CROPDMG,CROPDMGEXP))
+
+```
+
+```{r cache=TRUE}
+df_result=data.frame()
+for(event in data_dict$Event.Name) {
+  tmp_df=df.cleaned %>% filter(grepl(event,EVTYPE,ignore.case=T)) %>%
+    summarise(event=event,
+              total_num=n(),
+              fatalities=sum(FATALITIES,na.rm=T),
+              injuries=sum(INJURIES),
+              damage=sum(damage)
+    )
+  df_result=rbind(df_result,tmp_df)
+}
+```
+
