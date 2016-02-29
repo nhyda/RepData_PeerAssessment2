@@ -38,8 +38,9 @@ output:
 ```{r echo=F}
 library(limma)
 #library(magrittr)
-#library(ggplot2)
+library(ggplot2)
 library(dplyr)
+library(tidyr)
 #library(qvalue)
 #library(reshape)
 #library(lazyeval)
@@ -54,7 +55,7 @@ library(rhdf5)
 
 #read data in
 tried cache and .Rdata to speedy up
-```{r cache=TRUE}
+```{r reading_data}
 #system.time(df<-read.csv("data/repdata-data-StormData.csv",stringsAsFactors = F))
 #system.time(saveRDS(df,file="raw.Rdata"))
 system.time(df<-readRDS(file="raw.Rdata"))
@@ -65,18 +66,29 @@ system.time(df<-readRDS(file="raw.Rdata"))
 ```{r}
 unique_entries<-unique(df$EVTYPE)
 ```
-unique entries in the database is `length(unique_entries)` 
+unique entries in the database is `r length(unique_entries)` 
+
 these entries are combination of severnal predifined event type 
 it makes sense that heavy rain will usually cause flood 
 
-But 
-so a controlled vocabulary of event type is used to run analysis
-of course, death and 
+##example of unique event type has "heavy rain" in it
+I think they should all combine to one category 
+so I try to apply a controlled vocabulary within limited time
+```{r}
+df %>% 
+  select(EVTYPE) %>% 
+  filter(grepl("heavy rain",EVTYPE,ignore.case = T)) %>% 
+  unique() %>%
+  head()
+```
 
 ##controled vocabulary borrowed from National Weather Service Storm Data Documentation
-https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf 
+https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf
+
 page 6 table 2.1.1 Storm Data Event TAble 
+
 given the deadline, manually generated the list to seperate "/" as different event 
+
 add "Landslide" as an alternative for "Debris Flow"
 ```{r}
 data_dict=read.table("Storm_Data_Event_Table.txt",header=T,sep=";")
@@ -84,13 +96,9 @@ data_dict=read.table("Storm_Data_Event_Table.txt",header=T,sep=";")
 
 total number of available event type is `r dim(data_dict)[1]`
 
-
-
-###
-
-
 #generate new data table based on controlled vocabulary
 ##function that calculate property damage
+simple data validation build in as whether the EXP term is meaningful
 ```{r}
 Prop_Damage<-function(base,power_of_ten) {
   #print(paste("number is",base))
@@ -108,6 +116,7 @@ Prop_Damage<-function(base,power_of_ten) {
 }
 ```
 
+##select field of interest and calculate damage as combined property and crops
 ```{r}
 df.cleaned=df %>% 
     select(EVTYPE,FATALITIES,INJURIES,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP) %>%
@@ -115,7 +124,8 @@ df.cleaned=df %>%
 
 ```
 
-```{r cache=TRUE}
+##generate new data.frame with aggregated value
+```{r aggregate_event}
 df_result=data.frame()
 for(event in data_dict$Event.Name) {
   tmp_df=df.cleaned %>% filter(grepl(event,EVTYPE,ignore.case=T)) %>%
@@ -127,5 +137,36 @@ for(event in data_dict$Event.Name) {
     )
   df_result=rbind(df_result,tmp_df)
 }
+knitr::kable(head(df_result))
+```
+
+#Results
+##identify data type with NA value
+```{r}
+idx_na_row_col=which(is.na(df_result),arr.ind=TRUE)
+idx_row=unique(idx_na_row_col[,1])
+knitr::kable(df_result[idx_row,])
+```
+
+##Which types of events are most harmful with respeiot to population health?
+Use death and/or injury per 100 event as indicator of population health for this project 
+```{r}
+df_result<-df_result %>%
+  mutate(death_per_hundred=fatalities/total_num*100,
+        injury_per_hundred=injuries/total_num*100
+  )
+
+#order data by total heath impact
+position=arrange(na.omit(df_result),-(death_per_hundred+injury_per_hundred))$event
+
+#slim the data for plot
+df_plot=na.omit(df_result) %>% 
+  gather(damage_type,damage_per_hundred,death_per_hundred:injury_per_hundred)
+  
+
+ggplot(df_plot, aes(event,damage_per_hundred,fill=damage_type)) + 
+  geom_bar(stat="identity")+
+  scale_x_discrete(limits=position) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
 ```
 

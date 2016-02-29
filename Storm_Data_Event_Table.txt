@@ -4,7 +4,6 @@ Avalanche;Z
 Blizzard;Z 
 Coastal Flood;Z 
 Cold;Z
-Wind Chill;Z 
 Debris Flow;C
 Landslide;C
 Dense Fog;Z 
