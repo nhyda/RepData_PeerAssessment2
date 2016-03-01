@@ -182,7 +182,6 @@ use averaged damage per event as indicator
 ```{r}
 df_result<-df_result %>%
   mutate(avg_damage=damage/total_num)
-  )
 
 #order data by averaged damage
 position=arrange(na.omit(df_result),-(avg_damage))$event
