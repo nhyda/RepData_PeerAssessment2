@@ -52,8 +52,11 @@ library(tidyr)
 library(printr)
 library(rhdf5)
 ```
+#Synopsis
+preliminary analysis of storm data using controlled event type
 
-#read data in
+#Data Processing
+##read data in
 tried cache and .Rdata to speedy up
 ```{r reading_data}
 #system.time(df<-read.csv("data/repdata-data-StormData.csv",stringsAsFactors = F))
@@ -61,17 +64,18 @@ tried cache and .Rdata to speedy up
 system.time(df<-readRDS(file="raw.Rdata"))
 ```
 
-#vocabulary control of event type
-##unique entries in the database
+##vocabulary control of event type
+###unique entries in the database
 ```{r}
 unique_entries<-unique(df$EVTYPE)
 ```
 unique entries in the database is `r length(unique_entries)` 
 
-these entries are combination of severnal predifined event type 
-it makes sense that heavy rain will usually cause flood 
+these entries are combination of severnal predifined event type
 
-##example of unique event type has "heavy rain" in it
+For example, heavy rain will usually cause flood 
+
+###example of unique event type has "heavy rain" in it
 I think they should all combine to one category 
 so I try to apply a controlled vocabulary within limited time
 ```{r}
@@ -82,7 +86,7 @@ df %>%
   head()
 ```
 
-##controled vocabulary borrowed from National Weather Service Storm Data Documentation
+###controled vocabulary borrowed from National Weather Service Storm Data Documentation
 https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf
 
 page 6 table 2.1.1 Storm Data Event TAble 
@@ -96,9 +100,9 @@ data_dict=read.table("Storm_Data_Event_Table.txt",header=T,sep=";")
 
 total number of available event type is `r dim(data_dict)[1]`
 
-#generate new data table based on controlled vocabulary
-##function that calculate property damage
-simple data validation build in as whether the EXP term is meaningful
+##generate new data table based on controlled vocabulary
+###function that calculate property damage
+simple data validation build-in to use values with meaningful EXP term only
 ```{r}
 Prop_Damage<-function(base,power_of_ten) {
   #print(paste("number is",base))
@@ -116,7 +120,10 @@ Prop_Damage<-function(base,power_of_ten) {
 }
 ```
 
-##select field of interest and calculate damage as combined property and crops
+###select field of interest and calculate damage as combined property and crops
+has weired if statement warning here I can't figure out how to correct
+
+but doesn't seem to affect result
 ```{r}
 df.cleaned=df %>% 
     select(EVTYPE,FATALITIES,INJURIES,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP) %>%
@@ -169,4 +176,21 @@ ggplot(df_plot, aes(event,damage_per_hundred,fill=damage_type)) +
   scale_x_discrete(limits=position) +
   theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
 ```
+
+##which types of events have the greatest economic consequences?
+use averaged damage per event as indicator
+```{r}
+df_result<-df_result %>%
+  mutate(avg_damage=damage/total_num)
+  )
+
+#order data by averaged damage
+position=arrange(na.omit(df_result),-(avg_damage))$event
+
+ggplot(na.omit(df_result), aes(event,avg_damage)) + 
+  geom_bar(stat="identity")+
+  scale_x_discrete(limits=position) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
 
